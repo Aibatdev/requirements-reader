@@ -1,0 +1,1096 @@
+{
+  "version": 4,
+  "revision": "requirements-20261021",
+  "id": "requirements-2023",
+  "title": "Бағдарламалық қамтамасыз ету талаптарын әзірлеу және талдау",
+  "pdf": "./output/pdf/requirements-reader.pdf",
+  "width": 595.2,
+  "height": 841.92,
+  "pageCount": 152,
+  "contents": [
+    {
+      "key": "cover",
+      "title": "Мұқаба",
+      "page": 1,
+      "depth": 0
+    },
+    {
+      "key": "syllabus",
+      "title": "Пәннің жұмыс бағдарламасы",
+      "page": 3,
+      "depth": 0
+    },
+    {
+      "key": "course",
+      "title": "Курс мазмұны",
+      "page": 6,
+      "depth": 1
+    },
+    {
+      "key": "theory",
+      "title": "Дәрістер",
+      "page": 15,
+      "depth": 0
+    },
+    {
+      "key": "lecture-1",
+      "title": "Дәріс 1",
+      "page": 16,
+      "depth": 1
+    },
+    {
+      "key": "sub-1.1",
+      "title": "1.1 Негізгі ақпарат",
+      "number": "1.1",
+      "depth": 2,
+      "page": 16,
+      "parent": "lecture-1",
+      "anchor": {
+        "x": 119.09,
+        "y": 691.87
+      },
+      "matchText": "1.1"
+    },
+    {
+      "key": "sub-1.2",
+      "title": "1.2 Техникалық тапсырманы әзірлеу",
+      "number": "1.2",
+      "depth": 2,
+      "page": 19,
+      "parent": "lecture-1",
+      "anchor": {
+        "x": 96.288,
+        "y": 287.59
+      },
+      "matchText": "1.2"
+    },
+    {
+      "key": "lecture-2",
+      "title": "Дәріс 2",
+      "page": 23,
+      "depth": 1
+    },
+    {
+      "key": "sub-2.1",
+      "title": "2.1 Негізгі ақпарат",
+      "number": "2.1",
+      "depth": 2,
+      "page": 23,
+      "parent": "lecture-2",
+      "anchor": {
+        "x": 92.928,
+        "y": 138.77
+      },
+      "matchText": "2.1."
+    },
+    {
+      "key": "sub-2.2",
+      "title": "2.2 Функционалдық диаграмма",
+      "number": "2.2",
+      "depth": 2,
+      "page": 27,
+      "parent": "lecture-2",
+      "anchor": {
+        "x": 75.624,
+        "y": 486.38
+      },
+      "matchText": "2.2."
+    },
+    {
+      "key": "sub-2.4",
+      "title": "2.4 Ақпараттық ағын жүйелері",
+      "number": "2.4",
+      "depth": 2,
+      "page": 35,
+      "parent": "lecture-2",
+      "anchor": {
+        "x": 176.71,
+        "y": 289.51
+      },
+      "matchText": "2.4."
+    },
+    {
+      "key": "sub-2.5",
+      "title": "2.5 Маңызды байланыс диаграммасы",
+      "number": "2.5",
+      "depth": 2,
+      "page": 43,
+      "parent": "lecture-2",
+      "anchor": {
+        "x": 164.95,
+        "y": 681.31
+      },
+      "matchText": "2.5."
+    },
+    {
+      "key": "lecture-3",
+      "title": "Дәріс 3",
+      "page": 47,
+      "depth": 1
+    },
+    {
+      "key": "sub-3.1",
+      "title": "3.1 Блок диаграммасы (құрылымдық схема)",
+      "number": "3.1",
+      "depth": 2,
+      "page": 47,
+      "parent": "lecture-3",
+      "anchor": {
+        "x": 90.048,
+        "y": 708.19
+      },
+      "matchText": "3.1"
+    },
+    {
+      "key": "sub-3.2",
+      "title": "3.2 Функционалдық схема",
+      "number": "3.2",
+      "depth": 2,
+      "page": 48,
+      "parent": "lecture-3",
+      "anchor": {
+        "x": 83.064,
+        "y": 729.58
+      },
+      "matchText": "3.2."
+    },
+    {
+      "key": "lecture-4",
+      "title": "Дәріс 4",
+      "page": 52,
+      "depth": 1
+    },
+    {
+      "key": "sub-4.1",
+      "title": "4.1 Қолданыс түрлеріне қатысты диаграммалар",
+      "number": "4.1",
+      "depth": 2,
+      "page": 52,
+      "parent": "lecture-4",
+      "anchor": {
+        "x": 84.504,
+        "y": 702.67
+      },
+      "matchText": "4.1"
+    },
+    {
+      "key": "lecture-5",
+      "title": "Дәріс 5",
+      "page": 71,
+      "depth": 1
+    },
+    {
+      "key": "sub-5.1",
+      "title": "5.1 Прототиптер туралы негізгі мәліметтер",
+      "number": "5.1",
+      "depth": 2,
+      "page": 71,
+      "parent": "lecture-5",
+      "anchor": {
+        "x": 57.384,
+        "y": 556.01
+      },
+      "matchText": "5.1."
+    },
+    {
+      "key": "sub-5.2",
+      "title": "5.2 Прототип түрлері",
+      "number": "5.2",
+      "depth": 2,
+      "page": 71,
+      "parent": "lecture-5",
+      "anchor": {
+        "x": 63.144,
+        "y": 229.99
+      },
+      "matchText": "5.2"
+    },
+    {
+      "key": "sub-5.3",
+      "title": "5.3 Прототип құру мысалдары",
+      "number": "5.3",
+      "depth": 2,
+      "page": 72,
+      "parent": "lecture-5",
+      "anchor": {
+        "x": 56.424,
+        "y": 286.15
+      },
+      "matchText": "5.3."
+    },
+    {
+      "key": "lecture-6",
+      "title": "Дәріс 6",
+      "page": 75,
+      "depth": 1
+    },
+    {
+      "key": "sub-6.1",
+      "title": "6.1",
+      "number": "6.1",
+      "depth": 2,
+      "page": 75,
+      "parent": "lecture-6",
+      "anchor": {
+        "x": 49.224,
+        "y": 716.11
+      },
+      "matchText": "6.1."
+    },
+    {
+      "key": "sub-6.2",
+      "title": "6.2 Пайдаланушы интерфейсін құру",
+      "number": "6.2",
+      "depth": 2,
+      "page": 75,
+      "parent": "lecture-6",
+      "anchor": {
+        "x": 63.384,
+        "y": 281.35
+      },
+      "matchText": "6.2."
+    },
+    {
+      "key": "sub-6.3",
+      "title": "6.3 Пайдаланушы және компьютер арасындағы байланыс",
+      "number": "6.3",
+      "depth": 2,
+      "page": 76,
+      "parent": "lecture-6",
+      "anchor": {
+        "x": 59.304,
+        "y": 595.85
+      },
+      "matchText": "6.3."
+    },
+    {
+      "key": "sub-6.5",
+      "title": "6.5 Қателерді болдырмау, анықтау және түзету",
+      "number": "6.5",
+      "depth": 2,
+      "page": 82,
+      "parent": "lecture-6",
+      "anchor": {
+        "x": 51.864,
+        "y": 738.7
+      },
+      "matchText": "6.5."
+    },
+    {
+      "key": "sub-6.6",
+      "title": "6.6 Графикалық интерфейске қойылатын жалпы талаптар",
+      "number": "6.6",
+      "depth": 2,
+      "page": 83,
+      "parent": "lecture-6",
+      "anchor": {
+        "x": 73.944,
+        "y": 563.69
+      },
+      "matchText": "6.6."
+    },
+    {
+      "key": "lecture-7",
+      "title": "Дәріс 7",
+      "page": 84,
+      "depth": 1
+    },
+    {
+      "key": "lecture-8",
+      "title": "Дәріс 8",
+      "page": 89,
+      "depth": 1
+    },
+    {
+      "key": "sub-8.1",
+      "title": "8.1 Тестілеу деңгейлері",
+      "number": "8.1",
+      "depth": 2,
+      "page": 89,
+      "parent": "lecture-8",
+      "anchor": {
+        "x": 173.35,
+        "y": 712.99
+      },
+      "matchText": "8. 1."
+    },
+    {
+      "key": "sub-8.2",
+      "title": "8.2 Тестілеу технологиясы",
+      "number": "8.2",
+      "depth": 2,
+      "page": 90,
+      "parent": "lecture-8",
+      "anchor": {
+        "x": 67.944,
+        "y": 691.15
+      },
+      "matchText": "8.2."
+    },
+    {
+      "key": "sub-8.3",
+      "title": "8.3 Бағдарлама қателері",
+      "number": "8.3",
+      "depth": 2,
+      "page": 91,
+      "parent": "lecture-8",
+      "anchor": {
+        "x": 64.824,
+        "y": 545.18
+      },
+      "matchText": "8.3."
+    },
+    {
+      "key": "sub-8.4",
+      "title": "8.4 Тестілеу түрлері",
+      "number": "8.4",
+      "depth": 2,
+      "page": 94,
+      "parent": "lecture-8",
+      "anchor": {
+        "x": 73.464,
+        "y": 777.34
+      },
+      "matchText": "8.4."
+    },
+    {
+      "key": "lecture-9",
+      "title": "Дәріс 9",
+      "page": 97,
+      "depth": 1
+    },
+    {
+      "key": "sub-9.1",
+      "title": "9.1 COM-технологиясы және OLE автоматтандыру ұғымдары",
+      "number": "9.1",
+      "depth": 2,
+      "page": 97,
+      "parent": "lecture-9",
+      "anchor": {
+        "x": 65.064,
+        "y": 702.43
+      },
+      "matchText": "9.1."
+    },
+    {
+      "key": "sub-9.2",
+      "title": "9.2 Delphi",
+      "number": "9.2",
+      "depth": 2,
+      "page": 100,
+      "parent": "lecture-9",
+      "anchor": {
+        "x": 78.984,
+        "y": 756.7
+      },
+      "matchText": "9.2."
+    },
+    {
+      "key": "lecture-10",
+      "title": "Дәріс 10",
+      "page": 105,
+      "depth": 1
+    },
+    {
+      "key": "sub-10.1",
+      "title": "10.1 Динамикалық кітапхана жөнінде негізгі мәлімет",
+      "number": "10.1",
+      "depth": 2,
+      "page": 105,
+      "parent": "lecture-10",
+      "anchor": {
+        "x": 80.184,
+        "y": 684.43
+      },
+      "matchText": "10.1."
+    },
+    {
+      "key": "sub-10.2",
+      "title": "10.2 Мысалдары",
+      "number": "10.2",
+      "depth": 2,
+      "page": 106,
+      "parent": "lecture-10",
+      "anchor": {
+        "x": 80.184,
+        "y": 617.93
+      },
+      "matchText": "10.2."
+    },
+    {
+      "key": "section-110",
+      "title": "Зертханалық жұмыстар",
+      "page": 110,
+      "depth": 0
+    },
+    {
+      "key": "section-111",
+      "title": "Зертханалық жұмыс 1, 2",
+      "page": 111,
+      "depth": 1
+    },
+    {
+      "key": "section-116",
+      "title": "Зертханалық жұмыс 3, 4",
+      "page": 116,
+      "depth": 1
+    },
+    {
+      "key": "section-122",
+      "title": "Зертханалық жұмыс 5, 6",
+      "page": 122,
+      "depth": 1
+    },
+    {
+      "key": "section-142",
+      "title": "Зертханалық жұмыс 7",
+      "page": 142,
+      "depth": 1
+    },
+    {
+      "key": "section-145",
+      "title": "Зертханалық жұмыс 8, 9",
+      "page": 145,
+      "depth": 1
+    },
+    {
+      "key": "section-146",
+      "title": "Зертханалық жұмыс 10",
+      "page": 146,
+      "depth": 1
+    },
+    {
+      "key": "section-147",
+      "title": "Әдебиеттер",
+      "page": 147,
+      "depth": 0
+    },
+    {
+      "key": "section-148",
+      "title": "Білімді тексеру · Google Forms",
+      "page": 148,
+      "depth": 0
+    },
+    {
+      "key": "section-151",
+      "title": "Оқу-әдістемелік қамтамасыз етілу картасы",
+      "page": 151,
+      "depth": 0
+    }
+  ],
+  "pageSizes": [
+    {
+      "width": 595.2,
+      "height": 841.92
+    },
+    {
+      "width": 595.2,
+      "height": 841.92
+    },
+    {
+      "width": 595.2,
+      "height": 841.92
+    },
+    {
+      "width": 595.2,
+      "height": 841.92
+    },
+    {
+      "width": 595.2,
+      "height": 841.92
+    },
+    {
+      "width": 841.92,
+      "height": 595.2
+    },
+    {
+      "width": 841.92,
+      "height": 595.2
+    },
+    {
+      "width": 841.92,
+      "height": 595.2
+    },
+    {
+      "width": 841.92,
+      "height": 595.2
+    },
+    {
+      "width": 595.44,
+      "height": 841.92
+    },
+    {
+      "width": 595.44,
+      "height": 841.92
+    },
+    {
+      "width": 595.44,
+      "height": 841.92
+    },
+    {
+      "width": 595.44,
+      "height": 841.92
+    },
+    {
+      "width": 595.44,
+      "height": 841.92
+    },
+    {
+      "width": 595.44,
+      "height": 841.92
+    },
+    {
+      "width": 595.44,
+      "height": 841.92
+    },
+    {
+      "width": 595.44,
+      "height": 841.92
+    },
+    {
+      "width": 595.44,
+      "height": 841.92
+    },
+    {
+      "width": 595.44,
+      "height": 841.92
+    },
+    {
+      "width": 595.44,
+      "height": 841.92
+    },
+    {
+      "width": 595.44,
+      "height": 841.92
+    },
+    {
+      "width": 595.44,
+      "height": 841.92
+    },
+    {
+      "width": 595.44,
+      "height": 841.92
+    },
+    {
+      "width": 595.44,
+      "height": 841.92
+    },
+    {
+      "width": 595.44,
+      "height": 841.92
+    },
+    {
+      "width": 595.44,
+      "height": 841.92
+    },
+    {
+      "width": 595.44,
+      "height": 841.92
+    },
+    {
+      "width": 595.44,
+      "height": 841.92
+    },
+    {
+      "width": 595.44,
+      "height": 841.92
+    },
+    {
+      "width": 595.44,
+      "height": 841.92
+    },
+    {
+      "width": 595.44,
+      "height": 841.92
+    },
+    {
+      "width": 595.44,
+      "height": 841.92
+    },
+    {
+      "width": 595.44,
+      "height": 841.92
+    },
+    {
+      "width": 595.44,
+      "height": 841.92
+    },
+    {
+      "width": 595.44,
+      "height": 841.92
+    },
+    {
+      "width": 595.44,
+      "height": 841.92
+    },
+    {
+      "width": 595.44,
+      "height": 841.92
+    },
+    {
+      "width": 595.44,
+      "height": 841.92
+    },
+    {
+      "width": 595.44,
+      "height": 841.92
+    },
+    {
+      "width": 595.44,
+      "height": 841.92
+    },
+    {
+      "width": 595.44,
+      "height": 841.92
+    },
+    {
+      "width": 595.44,
+      "height": 841.92
+    },
+    {
+      "width": 595.44,
+      "height": 841.92
+    },
+    {
+      "width": 595.44,
+      "height": 841.92
+    },
+    {
+      "width": 595.44,
+      "height": 841.92
+    },
+    {
+      "width": 595.44,
+      "height": 841.92
+    },
+    {
+      "width": 595.44,
+      "height": 841.92
+    },
+    {
+      "width": 595.44,
+      "height": 841.92
+    },
+    {
+      "width": 595.44,
+      "height": 841.92
+    },
+    {
+      "width": 595.44,
+      "height": 841.92
+    },
+    {
+      "width": 595.44,
+      "height": 841.92
+    },
+    {
+      "width": 595.44,
+      "height": 841.92
+    },
+    {
+      "width": 595.44,
+      "height": 841.92
+    },
+    {
+      "width": 595.44,
+      "height": 841.92
+    },
+    {
+      "width": 595.44,
+      "height": 841.92
+    },
+    {
+      "width": 595.44,
+      "height": 841.92
+    },
+    {
+      "width": 595.44,
+      "height": 841.92
+    },
+    {
+      "width": 595.44,
+      "height": 841.92
+    },
+    {
+      "width": 595.44,
+      "height": 841.92
+    },
+    {
+      "width": 595.44,
+      "height": 841.92
+    },
+    {
+      "width": 595.44,
+      "height": 841.92
+    },
+    {
+      "width": 595.44,
+      "height": 841.92
+    },
+    {
+      "width": 595.44,
+      "height": 841.92
+    },
+    {
+      "width": 595.44,
+      "height": 841.92
+    },
+    {
+      "width": 595.44,
+      "height": 841.92
+    },
+    {
+      "width": 595.44,
+      "height": 841.92
+    },
+    {
+      "width": 595.44,
+      "height": 841.92
+    },
+    {
+      "width": 595.44,
+      "height": 841.92
+    },
+    {
+      "width": 595.44,
+      "height": 841.92
+    },
+    {
+      "width": 595.44,
+      "height": 841.92
+    },
+    {
+      "width": 595.44,
+      "height": 841.92
+    },
+    {
+      "width": 595.44,
+      "height": 841.92
+    },
+    {
+      "width": 595.44,
+      "height": 841.92
+    },
+    {
+      "width": 595.44,
+      "height": 841.92
+    },
+    {
+      "width": 595.44,
+      "height": 841.92
+    },
+    {
+      "width": 595.44,
+      "height": 841.92
+    },
+    {
+      "width": 595.44,
+      "height": 841.92
+    },
+    {
+      "width": 595.44,
+      "height": 841.92
+    },
+    {
+      "width": 595.44,
+      "height": 841.92
+    },
+    {
+      "width": 595.44,
+      "height": 841.92
+    },
+    {
+      "width": 595.44,
+      "height": 841.92
+    },
+    {
+      "width": 595.44,
+      "height": 841.92
+    },
+    {
+      "width": 595.44,
+      "height": 841.92
+    },
+    {
+      "width": 595.44,
+      "height": 841.92
+    },
+    {
+      "width": 595.44,
+      "height": 841.92
+    },
+    {
+      "width": 595.44,
+      "height": 841.92
+    },
+    {
+      "width": 595.44,
+      "height": 841.92
+    },
+    {
+      "width": 595.44,
+      "height": 841.92
+    },
+    {
+      "width": 595.44,
+      "height": 841.92
+    },
+    {
+      "width": 595.44,
+      "height": 841.92
+    },
+    {
+      "width": 595.44,
+      "height": 841.92
+    },
+    {
+      "width": 595.44,
+      "height": 841.92
+    },
+    {
+      "width": 595.44,
+      "height": 841.92
+    },
+    {
+      "width": 595.44,
+      "height": 841.92
+    },
+    {
+      "width": 595.44,
+      "height": 841.92
+    },
+    {
+      "width": 595.44,
+      "height": 841.92
+    },
+    {
+      "width": 595.44,
+      "height": 841.92
+    },
+    {
+      "width": 595.44,
+      "height": 841.92
+    },
+    {
+      "width": 595.44,
+      "height": 841.92
+    },
+    {
+      "width": 595.44,
+      "height": 841.92
+    },
+    {
+      "width": 595.44,
+      "height": 841.92
+    },
+    {
+      "width": 595.44,
+      "height": 841.92
+    },
+    {
+      "width": 595.44,
+      "height": 841.92
+    },
+    {
+      "width": 595.44,
+      "height": 841.92
+    },
+    {
+      "width": 595.44,
+      "height": 841.92
+    },
+    {
+      "width": 595.44,
+      "height": 841.92
+    },
+    {
+      "width": 595.44,
+      "height": 841.92
+    },
+    {
+      "width": 595.44,
+      "height": 841.92
+    },
+    {
+      "width": 595.44,
+      "height": 841.92
+    },
+    {
+      "width": 595.44,
+      "height": 841.92
+    },
+    {
+      "width": 595.44,
+      "height": 841.92
+    },
+    {
+      "width": 595.44,
+      "height": 841.92
+    },
+    {
+      "width": 595.44,
+      "height": 841.92
+    },
+    {
+      "width": 595.44,
+      "height": 841.92
+    },
+    {
+      "width": 595.44,
+      "height": 841.92
+    },
+    {
+      "width": 595.44,
+      "height": 841.92
+    },
+    {
+      "width": 595.44,
+      "height": 841.92
+    },
+    {
+      "width": 595.44,
+      "height": 841.92
+    },
+    {
+      "width": 595.44,
+      "height": 841.92
+    },
+    {
+      "width": 595.44,
+      "height": 841.92
+    },
+    {
+      "width": 595.44,
+      "height": 841.92
+    },
+    {
+      "width": 595.44,
+      "height": 841.92
+    },
+    {
+      "width": 595.44,
+      "height": 841.92
+    },
+    {
+      "width": 595.44,
+      "height": 841.92
+    },
+    {
+      "width": 595.44,
+      "height": 841.92
+    },
+    {
+      "width": 595.44,
+      "height": 841.92
+    },
+    {
+      "width": 595.44,
+      "height": 841.92
+    },
+    {
+      "width": 595.44,
+      "height": 841.92
+    },
+    {
+      "width": 595.44,
+      "height": 841.92
+    },
+    {
+      "width": 595.44,
+      "height": 841.92
+    },
+    {
+      "width": 595.44,
+      "height": 841.92
+    },
+    {
+      "width": 595.44,
+      "height": 841.92
+    },
+    {
+      "width": 595.44,
+      "height": 841.92
+    },
+    {
+      "width": 595.44,
+      "height": 841.92
+    },
+    {
+      "width": 595.44,
+      "height": 841.92
+    },
+    {
+      "width": 595.44,
+      "height": 841.92
+    },
+    {
+      "width": 595.44,
+      "height": 841.92
+    },
+    {
+      "width": 595.44,
+      "height": 841.92
+    },
+    {
+      "width": 595.44,
+      "height": 841.92
+    },
+    {
+      "width": 595.44,
+      "height": 841.92
+    },
+    {
+      "width": 595.44,
+      "height": 841.92
+    },
+    {
+      "width": 595.44,
+      "height": 841.92
+    },
+    {
+      "width": 595.44,
+      "height": 841.92
+    },
+    {
+      "width": 595.44,
+      "height": 841.92
+    },
+    {
+      "width": 595.44,
+      "height": 841.92
+    },
+    {
+      "width": 595.44,
+      "height": 841.92
+    },
+    {
+      "width": 595.44,
+      "height": 841.92
+    },
+    {
+      "width": 595.44,
+      "height": 841.92
+    },
+    {
+      "width": 595.44,
+      "height": 841.92
+    },
+    {
+      "width": 595.44,
+      "height": 841.92
+    },
+    {
+      "width": 595.44,
+      "height": 841.92
+    },
+    {
+      "width": 595.44,
+      "height": 841.92
+    }
+  ],
+  "selfCheckUrl": "https://docs.google.com/forms/d/e/1FAIpQLSdvl8ga4nU4yDlnR43J8AyBPZLmukQW8F-sBqU1tPe3rR-SnQ/viewform",
+  "formPages": [
+    149,
+    150
+  ]
+}

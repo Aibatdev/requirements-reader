@@ -1,0 +1,443 @@
+import {currentSection} from './contents-navigation.js';
+import {attachBookInteractions} from './book-interactions.js';
+import {initReadingTools} from './reading-tools.js?v=20261021-reader';
+import * as pdfjs from './vendor/pdf.mjs';
+import {makeCurl,paintCurl,finishCurl,prepareCurl} from './curl.js';
+import {attachPageLinks} from './pdf-links.js';
+import {preparePageSound,playPageSound} from './page-sound.js';
+
+pdfjs.GlobalWorkerOptions.workerSrc = './vendor/pdf.worker.mjs';
+const $ = id => document.getElementById(id);
+let readingTools;
+let pdf, profile, pages = [], index = 0, zoom = 1, busy = false, renderVersion = 0;
+let gesture = null, curl = null, suppressClickUntil = 0, resizeTimer, warmTimer;
+let pinch = null, pan = null;
+const pointers = new Map();
+const cache = new Map(), pending = new Map();
+const reducedMotion = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
+const phoneQuery = matchMedia('(max-width: 760px), (max-width: 1000px) and (max-height: 600px)');
+const pageStep = (i = index) => i === 0 || phoneQuery.matches ? 1 : 2;
+const adjacentPage = (direction, i = index) => direction > 0 ? i + pageStep(i) : Math.max(0, i - (phoneQuery.matches ? 1 : 2));
+const normalizePage = target => {
+  const clamped = Math.max(0, Math.min(pages.length - 1, target));
+  return clamped === 0 || phoneQuery.matches ? clamped : 1 + Math.floor((clamped - 1) / 2) * 2;
+};
+let positionKey = 'requirements-2023:position', focusedPage = 1, selectedSectionKey = null;
+function toast(message) {
+  $('toast').textContent = message; $('toast').classList.add('show');
+  clearTimeout(toast.timer); toast.timer = setTimeout(() => $('toast').classList.remove('show'), 3000);
+}
+function sound() { if (!reducedMotion()) playPageSound(); }
+function savePosition() { if (focusedPage === 1) return; try { localStorage.setItem(positionKey, String(focusedPage - 1)); } catch {} }
+function layout(i = index) {
+  const count = pageStep(i), entries = pages.slice(i, i + count), stage = $('stage');
+  const width = Math.max(80, stage.clientWidth - 12);
+  const height = Math.max(80, stage.clientHeight - 12);
+  const spreadWidth = entries.reduce((sum, entry) => sum + entry.width, 0) + (count - entries.length) * profile.width;
+  const spreadHeight = Math.max(...entries.map(entry => entry.height));
+  const scale = Math.min(width / spreadWidth, height / spreadHeight) * zoom;
+  return {entries, scale, ratio: Math.min(devicePixelRatio || 1, 2)};
+}
+async function canvasFor(entry, width) {
+  if (profile.formPages?.includes(entry.source)) {
+    const canvas=document.createElement('canvas');canvas.width=Math.ceil(width);canvas.height=Math.ceil(width*entry.height/entry.width);
+    const context=canvas.getContext('2d');context.fillStyle='#fff';context.fillRect(0,0,canvas.width,canvas.height);
+    return canvas;
+  }
+  const key = `${entry.source}:${Math.round(width)}`;
+  let source = cache.get(key);
+  if (!source) {
+    if (!pending.has(key)) pending.set(key, (async () => {
+      const page = await pdf.getPage(entry.source);
+      const viewport = page.getViewport({scale: width / entry.width});
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.ceil(viewport.width); canvas.height = Math.ceil(viewport.height);
+      await page.render({canvasContext: canvas.getContext('2d'), viewport, background: '#ffffff'}).promise;
+      cache.set(key, canvas);
+      if (cache.size > 12) cache.delete(cache.keys().next().value);
+      return canvas;
+    })());
+    try { source = await pending.get(key); } finally { pending.delete(key); }
+  }
+  const copy = document.createElement('canvas');
+  copy.width = source.width; copy.height = source.height; copy.dataset.cacheKey = key;
+  copy.getContext('2d').drawImage(source, 0, 0); return copy;
+}
+function updateNavigation(entries) {
+  $('pageInput').value = index + 1; $('pageInput').max = pages.length;
+  $('pageTotal').textContent = `${entries.length > 1 ? '– ' + (index + 2) : ''} / ${pages.length}`;
+  $('prev').disabled = index === 0; $('next').disabled = index + pageStep() >= pages.length;
+  $('prev').setAttribute('aria-label', pageStep() === 1 ? 'Алдыңғы бет' : 'Алдыңғы екі бет');
+  $('next').setAttribute('aria-label', pageStep() === 1 ? 'Келесі бет' : 'Келесі екі бет');
+  document.querySelector('.reading-hint').textContent = pageStep() === 1 ? (index === 0 ? 'Мұқаба · бір бет' : 'Бір бет · ыңғайлы оқу') : 'Екі бет · бір кітап';
+  $('progressFill').style.width = `${(index + entries.length) / pages.length * 100}%`;
+  const current = currentSection(profile.contents, focusedPage, selectedSectionKey);
+  $('chapterLabel').textContent = current?.title || profile.title;
+  $('book').querySelectorAll('.chapter-hotspot').forEach(button => {
+    const active = button.dataset.section === current?.key;
+    button.classList.toggle('selected', active);
+    button.setAttribute('aria-pressed', String(active));
+  });
+  document.querySelectorAll('.contents-entry').forEach(button => {
+    const active = button.dataset.key === current?.key;
+    button.classList.toggle('active', active);
+    if (active) {
+      button.setAttribute('aria-current', 'location');
+      if (!$('sidebar').hidden && button.dataset.key !== updateNavigation.lastKey) button.scrollIntoView({block:'nearest'});
+    } else button.removeAttribute('aria-current');
+  });
+  updateNavigation.lastKey = current?.key;
+  savePosition();
+  readingTools?.update();
+}
+function restoreTurnPreview(sheet) {
+  if (!sheet) return;
+  sheet.cancelled = true;
+  sheet.preview?.remove();
+  sheet.hiddenPages?.forEach(page => { page.style.visibility = ''; });
+  if (sheet.links) sheet.links.style.visibility = '';
+}
+async function showTurnPreview(sheet, target) {
+  if (!sheet) return;
+  const {entries,scale,ratio}=layout(target);
+  try {
+    const canvases=await Promise.all(entries.map(async entry => {
+      const canvas=await canvasFor(entry,Math.min(2600,entry.width*scale*ratio));
+      canvas.style.width=`${entry.width*scale}px`; canvas.style.height=`${entry.height*scale}px`;
+      canvas.dataset.previewPage=entry.source;
+      return canvas;
+    }));
+    if (curl!==sheet || sheet.cancelled || !sheet.canvas.isConnected) return;
+    const preview=document.createElement('div'); preview.className='turn-preview'; preview.setAttribute('aria-hidden','true');
+    preview.append(...canvases);
+    if (canvases.length===1 && pageStep(target)===2) {
+      const blank=document.createElement('div');
+      blank.style.cssText=`width:${profile.width*scale}px;height:${profile.height*scale}px;background:#fbf9f3`;
+      preview.append(blank);
+    }
+    sheet.preview=preview; sheet.hiddenPages=[...$('book').querySelectorAll(':scope > canvas:not(.curl-sheet)')];
+    sheet.links=$('book').querySelector('.pdf-links');
+    $('book').append(preview);
+    sheet.hiddenPages.forEach(page=>{page.style.visibility='hidden';});
+    if (sheet.links) sheet.links.style.visibility='hidden';
+    paintCurl(sheet,sheet.progress);
+  } catch(error) { console.error(error); }
+}
+async function render(direction = 0) {
+  if (!pdf) return;
+  const version = ++renderVersion, book = $('book'), {entries, scale, ratio} = layout();
+  book.classList.toggle('double', pageStep() === 2);
+  const canvases = await Promise.all(entries.map(async entry => {
+    const canvas = await canvasFor(entry, Math.min(2600, entry.width * scale * ratio));
+    canvas.style.width = `${entry.width * scale}px`; canvas.style.height = `${entry.height * scale}px`;
+    canvas.dataset.source = entry.source;
+    canvas.setAttribute('role', 'img'); canvas.setAttribute('aria-label', `Кітаптың ${entry.source}-беті`);
+    return canvas;
+  }));
+  if (version !== renderVersion) return;
+  let turning = curl;
+  if (turning) turning.cancelled = true; // Ignore a late gesture preview once the final pages are installed.
+  if (direction && !reducedMotion() && zoom === 1 && !turning) turning = makeCurl(book, direction);
+  if (turning) paintCurl(turning,turning.progress);
+  book.replaceChildren(...canvases);
+  if (canvases.length === 1 && pageStep() === 2) {
+    const blank = document.createElement('div'); blank.className = 'blank-page';
+    blank.style.cssText = `width:${profile.width * scale}px;height:${profile.height * scale}px`; book.append(blank);
+  }
+  if (turning) {
+    book.append(turning.canvas); await finishCurl(turning, 1, sound); curl = null;
+  } else if (direction) sound();
+  if (version !== renderVersion) return;
+  await attachPageLinks(pdf, pages, entries, canvases, book, () => version === renderVersion, target => go(target));
+  await attachBookInteractions(pdf, profile, entries, canvases, book, () => version === renderVersion, (page, key) => {
+    if (busy) return;
+    focusedPage = page;
+    selectedSectionKey = key;
+    updateNavigation(entries);
+    if ($('sidebar').hidden && !phoneQuery.matches) setContents(true);
+  });
+  if (version !== renderVersion) return;
+  updateNavigation(entries);
+  clearTimeout(warmTimer);
+  warmTimer = setTimeout(async () => {
+    prepareCurl();
+    for (const target of [adjacentPage(1), adjacentPage(-1)]) {
+      if (version !== renderVersion || target < 0 || target >= pages.length) continue;
+      const next = layout(target);
+      for (const entry of next.entries) {
+        if (version !== renderVersion) return;
+        try { await canvasFor(entry, Math.min(2600, entry.width * next.scale * next.ratio)); } catch {}
+      }
+    }
+  }, 100);
+  return true;
+}
+async function go(target, direction = 0, sectionKey = null) {
+  if (!pdf || busy || !Number.isFinite(target)) return;
+  target = Math.trunc(target);
+  const previousFocus = focusedPage;
+  const previousKey = selectedSectionKey;
+  selectedSectionKey = sectionKey;
+  const next = normalizePage(target);
+  focusedPage = Math.max(1, Math.min(pages.length, target + 1));
+  if (next === index) { updateNavigation(layout().entries); return; }
+  busy = true;
+  const previous = index;
+  try {
+    index = next; updateZoom(); $('stage').scrollTo(0, 0);
+    await render(direction);
+  } catch (error) {
+    console.error(error); index = previous; focusedPage = previousFocus; selectedSectionKey = previousKey;
+    try { await render(); } catch {}
+    toast('Бетті көрсету мүмкін болмады. Қайта көріңіз.');
+  } finally { busy = false; }
+}
+function setContents(open) {
+  $('sidebar').hidden = !open; $('sideToggle').setAttribute('aria-expanded', String(open));
+  document.body.classList.toggle('contents-open', open);
+  document.querySelector('main').inert = open && phoneQuery.matches;
+  document.querySelector('header').inert = open && phoneQuery.matches;
+  $('zoomControls').inert = open && phoneQuery.matches;
+  requestAnimationFrame(() => render().catch(console.error));
+  if (open) {
+    $('closeSide').focus();
+    $('sideContent').querySelector('.active')?.scrollIntoView({block:'center'});
+  } else $('sideToggle').focus();
+}
+function buildContents() {
+  const content = $('sideContent'); content.replaceChildren();
+
+  let groupBody = null;
+  for (const item of profile.contents) {
+    if (item.depth === 0) groupBody = null;
+    if (['theory','practice','independent','assessment'].includes(item.key)) {
+      const group = document.createElement('details'); group.className = 'contents-group'; group.open = true;
+      const summary = document.createElement('summary'); summary.textContent = item.title;
+      groupBody = document.createElement('div'); group.append(summary, groupBody); content.append(group);
+    }
+    const button = document.createElement('button');
+    button.className = `contents-entry depth-${item.depth}`; button.dataset.key = item.key;
+    const label = document.createElement('span'), page = document.createElement('span');
+    label.className = 'label'; label.textContent = item.title; page.className = 'page'; page.textContent = item.page;
+    button.append(label, page); button.onclick = async () => {
+      if (busy) return;
+      if (innerWidth <= 900 || phoneQuery.matches) setContents(false);
+      await go(item.page - 1, 0, item.key); await render();
+    };
+    (groupBody || content).append(button);
+  }
+}
+let zoomFadeTimer;
+function wakeZoomControls() {
+  clearTimeout(zoomFadeTimer);
+  $('zoomControls').classList.remove('idle');
+  if (zoom > 1) zoomFadeTimer = setTimeout(() => {
+    $('zoomControls').classList.add('idle');
+  }, 3000);
+}
+function updateZoom() {
+  wakeZoomControls();
+  document.body.classList.toggle('zoomed', zoom > 1);
+  $('zoomToggle').setAttribute('aria-pressed', String(zoom > 1));
+  $('zoomToggle').querySelector('span').textContent = zoom > 1 ? 'Қалыпты көрініс' : 'Үлкейту';
+  $('zoomControls').hidden = zoom <= 1;
+  $('zoomRange').value = Math.round(zoom * 100);
+  $('zoomValue').textContent = `${Math.round(zoom * 100)}%`;
+  $('zoomOut').disabled = zoom <= 1;
+  $('zoomIn').disabled = zoom >= 4;
+}
+function zoomAnchor(point) {
+  const book = $('book').getBoundingClientRect(), stage = $('stage').getBoundingClientRect();
+  const x = point?.clientX ?? (stage.left + stage.width / 2);
+  const y = point?.clientY ?? (stage.top + stage.height / 2);
+  return {x:(x-book.left)/book.width,y:(y-book.top)/book.height,screenX:x-stage.left,screenY:y-stage.top};
+}
+function positionAnchor(anchor) {
+  if (zoom === 1) { $('stage').scrollTo(0,0); return; }
+  const stage = $('stage'), book = $('book');
+  stage.scrollTo(Math.max(0, book.offsetLeft + anchor.x * book.offsetWidth - anchor.screenX), Math.max(0, book.offsetTop + anchor.y * book.offsetHeight - anchor.screenY));
+}
+function previewZoom(value, anchor) {
+  const previous = zoom;
+  zoom = Math.max(1,Math.min(4,value)); updateZoom();
+  const factor = zoom / previous;
+  $('book').querySelectorAll(':scope > canvas, :scope > .blank-page').forEach(canvas => {
+    canvas.style.width = `${parseFloat(canvas.style.width) * factor}px`;
+    canvas.style.height = `${parseFloat(canvas.style.height) * factor}px`;
+  });
+  const links = $('book').querySelector('.pdf-links');
+  if (links) {
+    const scale = (Number(links.dataset.scale)||1)*factor;
+    links.dataset.scale = scale; links.style.transformOrigin = '0 0'; links.style.transform = `scale(${scale})`;
+  }
+  positionAnchor(anchor);
+}
+async function changeZoom(value, point) {
+  if (!pdf || busy || pinch) return;
+  const anchor = zoom === 1 && !point ? {x:0,y:0,screenX:0,screenY:0} : zoomAnchor(point);
+  previewZoom(value,anchor);
+  try { if (await render()) positionAnchor(anchor); }
+  catch(error) { console.error(error); toast('Үлкейту мүмкін болмады.'); }
+}
+async function toggleZoom(point) {
+  await changeZoom(zoom === 1 ? 1.7 : 1,point);
+}
+async function loadBook() {
+  $('error').hidden = true; $('loading').hidden = false;
+  try {
+    const response = await fetch(new URL('./output/pdf/book.json?v=20261021-reader', import.meta.url), {cache:'no-store'});
+    if (!response.ok) throw Error('Кітап мазмұны табылмады.');
+    profile = await response.json();
+    positionKey = `${profile.id}:position`;
+    const pdfURL = new URL(profile.pdf, import.meta.url);
+    if (profile.revision) pdfURL.searchParams.set('v',profile.revision);
+    const file = await fetch(pdfURL, {cache:'no-store'});
+    if (!file.ok) throw Error('Кітаптың PDF файлы табылмады.');
+    pdf = await pdfjs.getDocument({data: new Uint8Array(await file.arrayBuffer()), isEvalSupported: false}).promise;
+    pages = Array.from({length: pdf.numPages}, (_, i) => ({source: i + 1, half: null, width: profile.pageSizes?.[i]?.width || profile.width, height: profile.pageSizes?.[i]?.height || profile.height}));
+    let saved=0;try {saved=Number(localStorage.getItem(positionKey))||0;} catch {}
+    index = 0; focusedPage = 1; // Every opening starts at the standalone cover.
+    readingTools=initReadingTools({go,current:()=>focusedPage-1,openContents:setContents,bookId:profile.id});
+    buildContents();
+    if (!phoneQuery.matches && innerWidth > 900) { $('sidebar').hidden=false; $('sideToggle').setAttribute('aria-expanded','true'); document.body.classList.add('contents-open'); }
+    await render();
+    readingTools.resume(saved,pages.length);
+    const requestedPage = Number(new URLSearchParams(location.search).get('page'));
+    if (Number.isInteger(requestedPage) && requestedPage > 0 && requestedPage <= pages.length) await go(requestedPage - 1);
+  } catch (error) {
+    console.error(error); $('errorText').textContent = `${error.message} Сайтты HTTP-сервер арқылы ашыңыз және output/pdf папкасын тексеріңіз.`;
+    $('error').hidden = false;
+  } finally { $('loading').hidden = true; }
+}
+$('prev').onclick = () => go(adjacentPage(-1), -1); $('next').onclick = () => go(adjacentPage(1), 1);
+$('pageInput').onchange = async e => { const target = Number(e.target.value); if (target >= 1) await go(target - 1); e.target.value = index + 1; };
+$('pageInput').onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); $('pageInput').onchange(e); } };
+$('sideToggle').onclick = () => setContents($('sidebar').hidden); $('closeSide').onclick = () => setContents(false);
+$('zoomToggle').onclick = () => { if (zoom > 1 && $('zoomControls').classList.contains('idle')) wakeZoomControls(); else toggleZoom(); }; $('retry').onclick = loadBook;
+$('zoomOut').onclick = () => changeZoom(zoom-.25);
+$('zoomIn').onclick = () => changeZoom(zoom+.25);
+$('zoomValue').onclick = () => changeZoom(1);
+$('zoomRange').oninput = e => { if (!busy && !pinch) previewZoom(Number(e.target.value)/100,zoomAnchor()); };
+$('zoomRange').onchange = () => changeZoom(zoom);
+for (const event of ['pointermove','focusin','focusout','keydown']) $('zoomControls').addEventListener(event,wakeZoomControls);
+$('zoomControls').addEventListener('click',e => {
+  if ($('zoomControls').classList.contains('idle')) { e.preventDefault(); e.stopPropagation(); wakeZoomControls(); }
+},true);
+document.querySelector('.brand').onclick = e => { e.preventDefault(); go(0); };
+$('fullscreen').onclick = async () => {
+  try { if (document.fullscreenElement) await document.exitFullscreen(); else await document.documentElement.requestFullscreen(); }
+  catch { toast('Толық экран бұл браузерде қолжетімсіз.'); }
+};
+document.addEventListener('keydown', e => {
+  if (/INPUT|SELECT|TEXTAREA/.test(e.target.tagName)) return;
+  if (e.key === 'Tab' && phoneQuery.matches && !$('sidebar').hidden) {
+    const buttons = [...$('sidebar').querySelectorAll('button,input,summary,a')].filter(element => element.getClientRects().length);
+    const first = buttons[0], last = buttons.at(-1);
+    if (e.shiftKey && e.target === first) { e.preventDefault(); last.focus(); }
+    else if (!e.shiftKey && e.target === last) { e.preventDefault(); first.focus(); }
+  }
+  if (e.key === 'ArrowRight') { e.preventDefault(); go(adjacentPage(1), 1); }
+  if (e.key === 'ArrowLeft') { e.preventDefault(); go(adjacentPage(-1), -1); }
+  if (e.key === 'Home') { e.preventDefault(); go(0); }
+  if (e.key === 'End') { e.preventDefault(); go(pages.length - 1); }
+  if (e.key.toLowerCase() === 'f') $('fullscreen').click();
+  if (e.key === 'Escape') { if (!$('sidebar').hidden) setContents(false); if (zoom > 1) toggleZoom(); }
+});
+document.addEventListener('pointerdown', preparePageSound, {passive: true});
+window.addEventListener('resize', () => { clearTimeout(resizeTimer); resizeTimer = setTimeout(() => { if (!busy && !gesture) render().catch(console.error); }, 150); });
+phoneQuery.addEventListener('change', async () => {
+  await cancelGesture();
+  pointers.clear(); pinch=null; pan=null;
+  zoom = 1; updateZoom();
+  if (pdf) index = normalizePage(index);
+  setContents(false);
+  $('stage').scrollTo(0, 0);
+});
+$('stage').addEventListener('pointerdown', e => {
+  if (!pdf || busy || e.pointerType === 'mouse' && e.button !== 0) return;
+  if (e.pointerType === 'touch') {
+    pointers.set(e.pointerId,{clientX:e.clientX,clientY:e.clientY});
+    if (pointers.size === 2) {
+      gesture = null; pan = null;
+      if (curl) { restoreTurnPreview(curl); curl.canvas.remove(); curl.old.style.visibility = ''; curl = null; }
+      const [a,b] = [...pointers.values()];
+      const center = {clientX:(a.clientX+b.clientX)/2,clientY:(a.clientY+b.clientY)/2};
+      pinch = {distance:Math.max(1,Math.hypot(a.clientX-b.clientX,a.clientY-b.clientY)),zoom,anchor:zoomAnchor(center)};
+      for (const id of pointers.keys()) $('stage').setPointerCapture(id);
+      suppressClickUntil = performance.now()+500;
+      return;
+    }
+  }
+  if (zoom > 1) {
+    if (e.target.closest('.pdf-link')) return;
+    pan = {id:e.pointerId,x:e.clientX,y:e.clientY,left:$('stage').scrollLeft,top:$('stage').scrollTop};
+    $('stage').setPointerCapture(e.pointerId); return;
+  }
+  if (e.target.closest('.pdf-link')) return;
+  gesture = {id: e.pointerId, x: e.clientX, y: e.clientY, time: performance.now(), direction: 0};
+});
+$('stage').addEventListener('pointermove', e => {
+  if (pointers.has(e.pointerId)) pointers.set(e.pointerId,{clientX:e.clientX,clientY:e.clientY});
+  if (pinch && pointers.size >= 2) {
+    e.preventDefault(); const [a,b]=[...pointers.values()];
+    previewZoom(pinch.zoom*Math.hypot(a.clientX-b.clientX,a.clientY-b.clientY)/pinch.distance,pinch.anchor); return;
+  }
+  if (pan?.id === e.pointerId) {
+    e.preventDefault(); $('stage').scrollTo(pan.left+pan.x-e.clientX,pan.top+pan.y-e.clientY);
+    if (Math.hypot(e.clientX-pan.x,e.clientY-pan.y)>8) suppressClickUntil=performance.now()+400;
+    return;
+  }
+  if (!gesture || gesture.id !== e.pointerId) return;
+  const dx = e.clientX - gesture.x, dy = e.clientY - gesture.y;
+  if (!gesture.direction) {
+    if (Math.abs(dy) > 12 && Math.abs(dy) > Math.abs(dx)) { gesture = null; return; }
+    if (Math.abs(dx) < 12 || Math.abs(dx) < Math.abs(dy) * 1.2) return;
+    const direction = dx < 0 ? 1 : -1;
+    if (direction > 0 && index + pageStep() >= pages.length || direction < 0 && index === 0) { gesture = null; return; }
+    gesture.direction = direction; $('stage').setPointerCapture(e.pointerId);
+    if (!reducedMotion()) {
+      curl = makeCurl($('book'), direction, gesture.y);
+      showTurnPreview(curl,adjacentPage(direction));
+    }
+  }
+  e.preventDefault(); gesture.distance = Math.max(0, dx * -gesture.direction);
+  if (curl) { curl.dragY = Math.max(-.4, Math.min(.4, dy / curl.height)); paintCurl(curl, Math.min(.88, gesture.distance / curl.width)); }
+});
+async function cancelGesture() {
+  gesture = null;
+  if (curl) {
+    const sheet=curl; sheet.cancelled=true; busy=true;
+    try { await finishCurl(sheet,0); }
+    finally { restoreTurnPreview(sheet); sheet.old.style.visibility=''; curl=null; busy=false; }
+  }
+}
+$('stage').addEventListener('pointerup', async e => {
+  pointers.delete(e.pointerId);
+  if (pinch) {
+    const anchor=pinch.anchor; pinch=null; pan=null; gesture=null;
+    suppressClickUntil=performance.now()+500;
+    if (await render()) positionAnchor(anchor); return;
+  }
+  if (pan?.id === e.pointerId) { pan=null; return; }
+  if (!gesture || gesture.id !== e.pointerId) return;
+  const current = gesture; gesture = null; if (!current.direction) return;
+  suppressClickUntil = performance.now() + 400;
+  const distance = current.distance || 0, elapsed = Math.max(1, performance.now() - current.time);
+  if (distance > Math.min(85, $('stage').clientWidth * .18) || distance > 28 && distance / elapsed > .35) await go(adjacentPage(current.direction), current.direction);
+  else await cancelGesture();
+});
+$('stage').addEventListener('pointercancel', async e => {
+  pointers.delete(e.pointerId); pinch=null; pan=null; await cancelGesture();
+  if (pdf) await render();
+});
+$('stage').addEventListener('click', e => { if (performance.now()<suppressClickUntil) { e.preventDefault(); e.stopPropagation(); } },true);
+$('book').addEventListener('click', e => {
+  if (busy || performance.now() < suppressClickUntil || e.target.closest('.pdf-link')) return;
+  const source = Number(e.target.dataset.source);
+  if (source) { focusedPage = source; selectedSectionKey = null; updateNavigation(layout().entries); }
+});
+$('stage').addEventListener('wheel', e => {
+  if (e.ctrlKey) { e.preventDefault(); changeZoom(zoom*Math.exp(-e.deltaY*.002),e); }
+},{passive:false});
+$('stage').addEventListener('dblclick', e => { if (!e.target.closest('.pdf-link') && performance.now() > suppressClickUntil) toggleZoom(e); });
+loadBook();
