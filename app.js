@@ -5,6 +5,8 @@ import * as pdfjs from './vendor/pdf.mjs';
 import {makeCurl,paintCurl,finishCurl,prepareCurl} from './curl.js';
 import {attachPageLinks} from './pdf-links.js';
 import {preparePageSound,playPageSound} from './page-sound.js';
+import {hidePrintedNumbers,attachTextLayers} from './page-text.js';
+import {captureSpread,animateSpread} from './smooth-turn.js';
 
 pdfjs.GlobalWorkerOptions.workerSrc = './vendor/pdf.worker.mjs';
 const $ = id => document.getElementById(id);
@@ -12,6 +14,7 @@ let readingTools;
 let pdf, profile, pages = [], index = 0, zoom = 1, busy = false, renderVersion = 0;
 let gesture = null, curl = null, suppressClickUntil = 0, resizeTimer, warmTimer;
 let pinch = null, pan = null;
+let selectionMode = false;
 const pointers = new Map();
 const cache = new Map(), pending = new Map();
 const reducedMotion = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -53,6 +56,7 @@ async function canvasFor(entry, width) {
       const canvas = document.createElement('canvas');
       canvas.width = Math.ceil(viewport.width); canvas.height = Math.ceil(viewport.height);
       await page.render({canvasContext: canvas.getContext('2d'), viewport, background: '#ffffff'}).promise;
+      await hidePrintedNumbers(pdf,entry,profile,canvas.getContext('2d'),viewport);
       cache.set(key, canvas);
       if (cache.size > 12) cache.delete(cache.keys().next().value);
       return canvas;
@@ -115,7 +119,7 @@ async function showTurnPreview(sheet, target) {
       blank.style.cssText=`width:${profile.width*scale}px;height:${profile.height*scale}px;background:#fbf9f3`;
       preview.append(blank);
     }
-    sheet.preview=preview; sheet.hiddenPages=[...$('book').querySelectorAll(':scope > canvas:not(.curl-sheet)')];
+    sheet.preview=preview; sheet.hiddenPages=[...$('book').querySelectorAll(':scope > canvas:not(.curl-sheet), :scope > .page-text-layers')];
     sheet.links=$('book').querySelector('.pdf-links');
     $('book').append(preview);
     sheet.hiddenPages.forEach(page=>{page.style.visibility='hidden';});
@@ -126,7 +130,6 @@ async function showTurnPreview(sheet, target) {
 async function render(direction = 0) {
   if (!pdf) return;
   const version = ++renderVersion, book = $('book'), {entries, scale, ratio} = layout();
-  book.classList.toggle('double', pageStep() === 2);
   const canvases = await Promise.all(entries.map(async entry => {
     const canvas = await canvasFor(entry, Math.min(2600, entry.width * scale * ratio));
     canvas.style.width = `${entry.width * scale}px`; canvas.style.height = `${entry.height * scale}px`;
@@ -137,16 +140,18 @@ async function render(direction = 0) {
   if (version !== renderVersion) return;
   let turning = curl;
   if (turning) turning.cancelled = true; // Ignore a late gesture preview once the final pages are installed.
-  if (direction && !reducedMotion() && zoom === 1 && !turning) turning = makeCurl(book, direction);
+  const outgoing=direction && !reducedMotion() && !turning ? captureSpread(book) : null;
   if (turning) paintCurl(turning,turning.progress);
   book.replaceChildren(...canvases);
+  book.classList.toggle('double', pageStep() === 2);
   if (canvases.length === 1 && pageStep() === 2) {
     const blank = document.createElement('div'); blank.className = 'blank-page';
     blank.style.cssText = `width:${profile.width * scale}px;height:${profile.height * scale}px`; book.append(blank);
   }
   if (turning) {
     book.append(turning.canvas); await finishCurl(turning, 1, sound); curl = null;
-  } else if (direction) sound();
+  } else if (outgoing) { sound(); await animateSpread(book,outgoing,canvases,direction); }
+  else if (direction) sound();
   if (version !== renderVersion) return;
   await attachPageLinks(pdf, pages, entries, canvases, book, () => version === renderVersion, target => go(target));
   await attachBookInteractions(pdf, profile, entries, canvases, book, () => version === renderVersion, (page, key) => {
@@ -156,6 +161,8 @@ async function render(direction = 0) {
     updateNavigation(entries);
     if ($('sidebar').hidden && !phoneQuery.matches) setContents(true);
   });
+  if (version !== renderVersion) return;
+  await attachTextLayers(pdf,entries,canvases,profile,book,()=>version===renderVersion);
   if (version !== renderVersion) return;
   updateNavigation(entries);
   clearTimeout(warmTimer);
@@ -265,8 +272,7 @@ function previewZoom(value, anchor) {
     canvas.style.width = `${parseFloat(canvas.style.width) * factor}px`;
     canvas.style.height = `${parseFloat(canvas.style.height) * factor}px`;
   });
-  const links = $('book').querySelector('.pdf-links');
-  if (links) {
+  for (const links of $('book').querySelectorAll('.pdf-links,.page-text-layers')) {
     const scale = (Number(links.dataset.scale)||1)*factor;
     links.dataset.scale = scale; links.style.transformOrigin = '0 0'; links.style.transform = `scale(${scale})`;
   }
@@ -310,6 +316,12 @@ async function loadBook() {
   } finally { $('loading').hidden = true; }
 }
 $('prev').onclick = () => go(adjacentPage(-1), -1); $('next').onclick = () => go(adjacentPage(1), 1);
+$('selectText').onclick = () => {
+ selectionMode=!selectionMode;
+ document.body.classList.toggle('selecting-text',selectionMode);
+ $('selectText').setAttribute('aria-pressed',String(selectionMode));
+ toast(selectionMode?'Мәтінді белгілеңіз: Ctrl+C немесе «Көшіру»':'Беттерді сырғытып ауыстыру қосылды');
+};
 $('pageInput').onchange = async e => { const target = Number(e.target.value); if (target >= 1) await go(target - 1); e.target.value = index + 1; };
 $('pageInput').onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); $('pageInput').onchange(e); } };
 $('sideToggle').onclick = () => setContents($('sidebar').hidden); $('closeSide').onclick = () => setContents(false);
@@ -329,6 +341,7 @@ $('fullscreen').onclick = async () => {
   catch { toast('Толық экран бұл браузерде қолжетімсіз.'); }
 };
 document.addEventListener('keydown', e => {
+  if(e.ctrlKey||e.metaKey||e.altKey||window.getSelection?.()?.toString())return;
   if (/INPUT|SELECT|TEXTAREA/.test(e.target.tagName)) return;
   if (e.key === 'Tab' && phoneQuery.matches && !$('sidebar').hidden) {
     const buttons = [...$('sidebar').querySelectorAll('button,input,summary,a')].filter(element => element.getClientRects().length);
@@ -349,12 +362,13 @@ phoneQuery.addEventListener('change', async () => {
   await cancelGesture();
   pointers.clear(); pinch=null; pan=null;
   zoom = 1; updateZoom();
-  if (pdf) index = normalizePage(index);
+  if (pdf) index = normalizePage(focusedPage - 1);
   setContents(false);
   $('stage').scrollTo(0, 0);
 });
 $('stage').addEventListener('pointerdown', e => {
   if (!pdf || busy || e.pointerType === 'mouse' && e.button !== 0) return;
+  if(selectionMode || e.pointerType==='mouse' && e.target.closest('.textLayer'))return;
   if (e.pointerType === 'touch') {
     pointers.set(e.pointerId,{clientX:e.clientX,clientY:e.clientY});
     if (pointers.size === 2) {
@@ -401,7 +415,10 @@ $('stage').addEventListener('pointermove', e => {
     }
   }
   e.preventDefault(); gesture.distance = Math.max(0, dx * -gesture.direction);
-  if (curl) { curl.dragY = Math.max(-.4, Math.min(.4, dy / curl.height)); paintCurl(curl, Math.min(.88, gesture.distance / curl.width)); }
+  if (curl) {
+    const sheet=curl;sheet.dragY=Math.max(-.4,Math.min(.4,dy/sheet.height));sheet.nextProgress=Math.min(.88,gesture.distance/sheet.width);
+    if(!sheet.gestureFrame)sheet.gestureFrame=requestAnimationFrame(()=>{sheet.gestureFrame=0;if(curl===sheet)paintCurl(sheet,sheet.nextProgress);});
+  }
 });
 async function cancelGesture() {
   gesture = null;
@@ -432,12 +449,13 @@ $('stage').addEventListener('pointercancel', async e => {
 });
 $('stage').addEventListener('click', e => { if (performance.now()<suppressClickUntil) { e.preventDefault(); e.stopPropagation(); } },true);
 $('book').addEventListener('click', e => {
+  if(window.getSelection?.()?.toString())return;
   if (busy || performance.now() < suppressClickUntil || e.target.closest('.pdf-link')) return;
-  const source = Number(e.target.dataset.source);
+  const source = Number(e.target.closest('[data-source]')?.dataset.source);
   if (source) { focusedPage = source; selectedSectionKey = null; updateNavigation(layout().entries); }
 });
 $('stage').addEventListener('wheel', e => {
   if (e.ctrlKey) { e.preventDefault(); changeZoom(zoom*Math.exp(-e.deltaY*.002),e); }
 },{passive:false});
-$('stage').addEventListener('dblclick', e => { if (!e.target.closest('.pdf-link') && performance.now() > suppressClickUntil) toggleZoom(e); });
+$('stage').addEventListener('dblclick', e => { if (!selectionMode && !e.target.closest('.pdf-link,.textLayer') && performance.now() > suppressClickUntil) toggleZoom(e); });
 loadBook();
