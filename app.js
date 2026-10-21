@@ -1,12 +1,11 @@
 import {currentSection} from './contents-navigation.js';
-import {attachBookInteractions} from './book-interactions.js';
-import {initReadingTools} from './reading-tools.js?v=20261021-reader';
+import {attachBookInteractions} from './book-interactions.js?v=book-v3';
+import {initReadingTools} from './reading-tools.js?v=20261021-book-v3';
 import * as pdfjs from './vendor/pdf.mjs';
-import {makeCurl,paintCurl,finishCurl,prepareCurl} from './curl.js';
+import {makeCurl,paintCurl,finishCurl,prepareCurl,setTurnBack} from './curl.js?v=book-v3';
 import {attachPageLinks} from './pdf-links.js';
 import {preparePageSound,playPageSound} from './page-sound.js';
 import {hidePrintedNumbers,attachTextLayers} from './page-text.js';
-import {captureSpread,animateSpread} from './smooth-turn.js';
 
 pdfjs.GlobalWorkerOptions.workerSrc = './vendor/pdf.worker.mjs';
 const $ = id => document.getElementById(id);
@@ -98,6 +97,7 @@ function restoreTurnPreview(sheet) {
   if (!sheet) return;
   sheet.cancelled = true;
   sheet.preview?.remove();
+  sheet.stationary?.remove();
   sheet.hiddenPages?.forEach(page => { page.style.visibility = ''; });
   if (sheet.links) sheet.links.style.visibility = '';
 }
@@ -122,6 +122,8 @@ async function showTurnPreview(sheet, target) {
     sheet.preview=preview; sheet.hiddenPages=[...$('book').querySelectorAll(':scope > canvas:not(.curl-sheet), :scope > .page-text-layers')];
     sheet.links=$('book').querySelector('.pdf-links');
     $('book').append(preview);
+    setTurnBack(sheet,canvases);
+    if(sheet.stationary)$('book').append(sheet.stationary);
     sheet.hiddenPages.forEach(page=>{page.style.visibility='hidden';});
     if (sheet.links) sheet.links.style.visibility='hidden';
     paintCurl(sheet,sheet.progress);
@@ -140,7 +142,7 @@ async function render(direction = 0) {
   if (version !== renderVersion) return;
   let turning = curl;
   if (turning) turning.cancelled = true; // Ignore a late gesture preview once the final pages are installed.
-  const outgoing=direction && !reducedMotion() && !turning ? captureSpread(book) : null;
+  if(direction && !reducedMotion() && zoom===1 && !turning)turning=makeCurl(book,direction);
   if (turning) paintCurl(turning,turning.progress);
   book.replaceChildren(...canvases);
   book.classList.toggle('double', pageStep() === 2);
@@ -149,9 +151,10 @@ async function render(direction = 0) {
     blank.style.cssText = `width:${profile.width * scale}px;height:${profile.height * scale}px`; book.append(blank);
   }
   if (turning) {
-    book.append(turning.canvas); await finishCurl(turning, 1, sound); curl = null;
-  } else if (outgoing) { sound(); await animateSpread(book,outgoing,canvases,direction); }
-  else if (direction) sound();
+    setTurnBack(turning,canvases);
+    if(turning.stationary)book.append(turning.stationary);
+    book.append(turning.canvas); paintCurl(turning,turning.progress); await finishCurl(turning, 1, sound); curl = null;
+  } else if (direction) sound();
   if (version !== renderVersion) return;
   await attachPageLinks(pdf, pages, entries, canvases, book, () => version === renderVersion, target => go(target));
   await attachBookInteractions(pdf, profile, entries, canvases, book, () => version === renderVersion, (page, key) => {
@@ -291,9 +294,10 @@ async function toggleZoom(point) {
 async function loadBook() {
   $('error').hidden = true; $('loading').hidden = false;
   try {
-    const response = await fetch(new URL('./output/pdf/book.json?v=20261021-reader', import.meta.url), {cache:'no-store'});
+    const response = await fetch(new URL('./output/pdf/book.json?v=20261021-book-v3', import.meta.url), {cache:'no-store'});
     if (!response.ok) throw Error('Кітап мазмұны табылмады.');
     profile = await response.json();
+    document.querySelector('.footer-note').textContent=`Электрондық кітап · ${profile.pageCount} бет`;
     positionKey = `${profile.id}:position`;
     const pdfURL = new URL(profile.pdf, import.meta.url);
     if (profile.revision) pdfURL.searchParams.set('v',profile.revision);

@@ -21,13 +21,13 @@ void main(){
 }`;
 const fragmentSource=`
 precision mediump float;
-uniform sampler2D page;
+uniform sampler2D page,backPage;
 uniform float opacity;
 varying vec2 tex;
 varying float facing,bend;
 void main(){
  vec3 ink=texture2D(page,tex).rgb;
- vec3 paper=mix(vec3(.97,.96,.93),ink,.075);
+ vec3 paper=texture2D(backPage,vec2(1.-tex.x,tex.y)).rgb;
  vec3 color=facing<0.?paper:ink;
  float shade=1.-.13*(1.-abs(facing))-.035*bend;
  gl_FragColor=vec4(color*shade,opacity);
@@ -48,19 +48,26 @@ function renderer(){
  const texture=gl.createTexture();gl.bindTexture(gl.TEXTURE_2D,texture);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.LINEAR);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,gl.LINEAR);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_S,gl.CLAMP_TO_EDGE);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,gl.CLAMP_TO_EDGE);
  const uniforms=Object.fromEntries(['size','screen','progress','anchor','dragY','direction','margin','padding','opacity'].map(n=>[n,gl.getUniformLocation(program,n)]));
  gl.enable(gl.DEPTH_TEST);gl.depthFunc(gl.LEQUAL);gl.clearColor(0,0,0,0);
- surface={canvas,gl,uniforms,texture,count:indices.length};return surface;
+ const backTexture=gl.createTexture();gl.activeTexture(gl.TEXTURE1);gl.bindTexture(gl.TEXTURE_2D,backTexture);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.LINEAR);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,gl.LINEAR);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_S,gl.CLAMP_TO_EDGE);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,gl.CLAMP_TO_EDGE);gl.uniform1i(gl.getUniformLocation(program,'backPage'),1);gl.uniform1i(gl.getUniformLocation(program,'page'),0);gl.activeTexture(gl.TEXTURE0);
+ surface={canvas,gl,uniforms,texture,backTexture,count:indices.length};return surface;
 }
 export function makeCurl(book,direction,grabY){
  const leaves=[...book.querySelectorAll(':scope > canvas:not(.curl-sheet):not(.curl-preview)')],old=leaves[direction>0?leaves.length-1:0];if(!old)return null;
  const width=parseFloat(old.style.width),height=parseFloat(old.style.height),rect=old.getBoundingClientRect();
- const anchor=Number.isFinite(grabY)?Math.max(0,Math.min(1,(grabY-rect.top)/rect.height)):.5;
+ const anchor=Number.isFinite(grabY)?Math.max(0,Math.min(1,(grabY-rect.top)/rect.height)):(direction>0?.85:.15);
  let gpu;try{gpu=renderer()}catch(e){console.warn('Continuous page fallback:',e.message)}
  const canvas=gpu?.canvas||document.createElement('canvas'),margin=width,padding=80,ratio=Math.min(devicePixelRatio||1,innerWidth<=760?1:1.5);
  canvas.className='curl-sheet';const pixelWidth=Math.ceil((width+2*margin)*ratio),pixelHeight=Math.ceil((height+2*padding)*ratio);if(canvas.width!==pixelWidth)canvas.width=pixelWidth;if(canvas.height!==pixelHeight)canvas.height=pixelHeight;
  canvas.style.cssText=`position:absolute;width:${width+2*margin}px;height:${height+2*padding}px;top:${-padding}px;opacity:1`;
  const left=direction>0&&leaves.length>1?parseFloat(leaves[0].style.width):0;canvas.style.left=left-margin+'px';
- if(gpu){const{gl}=gpu;gl.bindTexture(gl.TEXTURE_2D,gpu.texture);gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE,old);}
- book.append(canvas);return{canvas,old,width,height,margin,padding,direction,anchor,dragY:0,progress:0,left,gpu};
+ if(gpu){const{gl}=gpu;gl.activeTexture(gl.TEXTURE0);gl.bindTexture(gl.TEXTURE_2D,gpu.texture);gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE,old);gl.activeTexture(gl.TEXTURE1);gl.bindTexture(gl.TEXTURE_2D,gpu.backTexture);gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,1,1,0,gl.RGBA,gl.UNSIGNED_BYTE,new Uint8Array([255,255,255,255]));gl.activeTexture(gl.TEXTURE0);}
+ let stationary;
+ if(leaves.length===2){const source=leaves[direction>0?0:1];stationary=document.createElement('canvas');stationary.width=source.width;stationary.height=source.height;stationary.getContext('2d').drawImage(source,0,0);stationary.className='turn-stationary';stationary.style.cssText=`position:absolute;left:${source.offsetLeft}px;top:${source.offsetTop}px;width:${source.style.width};height:${source.style.height}`;}
+ book.append(canvas);return{canvas,old,stationary,width,height,margin,padding,direction,anchor,dragY:0,progress:0,left,gpu};
+}
+export function setTurnBack(sheet,canvases){
+ const back=canvases[sheet.direction>0?0:canvases.length-1];
+ if(sheet.gpu&&back){const{gl,backTexture}=sheet.gpu;gl.activeTexture(gl.TEXTURE1);gl.bindTexture(gl.TEXTURE_2D,backTexture);gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE,back);gl.activeTexture(gl.TEXTURE0);}
 }
 function fallback(sheet,p){
  const{canvas,old,width,height,margin,padding,direction,anchor}=sheet,ctx=canvas.getContext('2d'),ratio=canvas.width/(width+2*margin),flex=Math.sin(p*Math.PI);
@@ -73,7 +80,8 @@ function fallback(sheet,p){
  const shade=ctx.createLinearGradient(fold-width*p,0,fold,0);shade.addColorStop(0,'#f8f6ef');shade.addColorStop(.7,'#e5e1d7');shade.addColorStop(1,'#bdb9b0');ctx.fillStyle=shade;ctx.fill();ctx.restore();
 }
 export function paintCurl(sheet,progress){
- const p=Math.max(0,Math.min(1,progress));sheet.progress=p;const opacity=p>.94?(1-p)/.06:1;
+ const p=Math.max(0,Math.min(1,progress));sheet.progress=p;const opacity=p>.985?(1-p)/.015:1;
+ if(sheet.stationary)sheet.stationary.style.opacity=String(p<.6?1:Math.max(0,(.86-p)/.26));
  if(sheet.gpu&&!sheet.gpu.gl.isContextLost()){
   const{gl,uniforms:u}=sheet.gpu;gl.viewport(0,0,sheet.canvas.width,sheet.canvas.height);gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);
   gl.uniform2f(u.size,sheet.width,sheet.height);gl.uniform2f(u.screen,sheet.width+sheet.margin*2,sheet.height+sheet.padding*2);
@@ -86,8 +94,9 @@ export function paintCurl(sheet,progress){
 }
 export function finishCurl(sheet,target,onTurn){
  if(sheet.animation)cancelAnimationFrame(sheet.animation);if(sheet.gestureFrame){cancelAnimationFrame(sheet.gestureFrame);sheet.gestureFrame=0;}
- const from=sheet.progress,start=performance.now(),duration=Math.max(140,Math.abs(target-from)*560);let sounded=false;
- return new Promise(resolve=>{function frame(now){const t=Math.min(1,(now-start)/duration),ease=t*t*(3-2*t),p=from+(target-from)*ease;paintCurl(sheet,p);if(target===1&&!sounded&&p>=.52){sounded=true;onTurn?.()}if(t<1)sheet.animation=requestAnimationFrame(frame);else{sheet.canvas.remove();resolve()}}sheet.animation=requestAnimationFrame(frame)});
+ const from=sheet.progress,start=performance.now(),duration=Math.max(180,Math.abs(target-from)*760);let sounded=false;
+ return new Promise(resolve=>{function frame(now){const t=Math.min(1,(now-start)/duration),ease=t*t*(3-2*t),p=from+(target-from)*ease;paintCurl(sheet,p);if(target===1&&!sounded&&p>=.52){sounded=true;onTurn?.()}if(t<1)sheet.animation=requestAnimationFrame(frame);else{sheet.canvas.remove();sheet.stationary?.remove();resolve()}}sheet.animation=requestAnimationFrame(frame)});
 }
 
 export function prepareCurl(){try{renderer()}catch{}}
+

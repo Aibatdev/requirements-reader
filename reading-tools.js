@@ -35,7 +35,7 @@ export function initReadingTools({go,current,openContents,bookId="requirements-2
     $('searchResults').replaceChildren();if(!query){$('toolStatus').textContent='Іздеу сөзін енгізіңіз.';return;}
     $('toolStatus').textContent='Іздеу…';
     try {
-      if(!data){const response=await fetch(new URL('./output/pdf/search.json?v=20261021-reader',import.meta.url));if(!response.ok)throw Error();data=await response.json();}
+      if(!data){const response=await fetch(new URL('./output/pdf/search.json?v=20261021-book-v3',import.meta.url));if(!response.ok)throw Error();data=await response.json();}
       if(version!==request)return;
       const matches=searchPages(data,query);$('toolStatus').textContent=matches.length?`${matches.length} бет табылды`:'Сәйкес мәтін табылмады.';
       for(const match of matches){

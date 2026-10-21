@@ -28,6 +28,19 @@ async function headings(pdf, source) {
   return cache.get(source);
 }
 export async function attachBookInteractions(pdf, profile, entries, canvases, book, isCurrent, select) {
+  if(profile.layout==='reflow'){
+    if(!isCurrent())return;
+    const layer=book.querySelector('.pdf-links');if(!layer)return;
+    entries.forEach((entry,i)=>{
+      const canvas=canvases[i],width=parseFloat(canvas.style.width),height=parseFloat(canvas.style.height);
+      for(const section of profile.contents.filter(s=>s.page===entry.source&&s.box)){
+        const b=section.box,button=document.createElement('button');button.type='button';button.className='pdf-link chapter-hotspot';button.dataset.section=section.key;
+        button.setAttribute('aria-label',`${section.title} · мазмұнында көрсету`);
+        button.style.cssText=`left:${canvas.offsetLeft+b.x*width}px;top:${canvas.offsetTop+b.y*height}px;width:${b.width*width}px;height:${b.height*height}px`;
+        button.onclick=e=>{e.stopPropagation();select(section.page,section.key);};layer.append(button);
+      }
+    });return;
+  }
   const groups = await Promise.all(entries.map(entry => profile.formPages?.includes(entry.source) ? [] : headings(pdf,entry.source)));
   if (!isCurrent()) return;
   const layer = book.querySelector('.pdf-links');
